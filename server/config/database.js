@@ -10,13 +10,29 @@ class Database {
 
     async initialize() {
         return new Promise((resolve, reject) => {
-            const dbPath = process.env.DB_PATH || path.join(__dirname, '../data/rodb.db');
-            const dbDir = path.dirname(dbPath);
-
-            // Ensure data directory exists
-            if (!fs.existsSync(dbDir)) {
-                fs.mkdirSync(dbDir, { recursive: true });
+            let dbPath = process.env.DB_PATH || path.join(__dirname, '../data/rodb.db');
+            
+            logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+            logger.info(`Initial DB Path: ${dbPath}`);
+            
+            // Try to create directory if path is file-based
+            if (dbPath !== ':memory:') {
+                const dbDir = path.dirname(dbPath);
+                try {
+                    if (!fs.existsSync(dbDir)) {
+                        fs.mkdirSync(dbDir, { recursive: true });
+                        logger.info(`Created directory: ${dbDir}`);
+                    }
+                    // Test write access
+                    fs.accessSync(dbDir, fs.constants.W_OK);
+                    logger.info(`Directory is writable: ${dbDir}`);
+                } catch (err) {
+                    logger.warn(`Cannot write to ${dbDir}, falling back to memory database:`, err.message);
+                    dbPath = ':memory:';
+                }
             }
+
+            logger.info(`Using database: ${dbPath}`);
 
             // Create database connection
             this.db = new sqlite3.Database(dbPath, (err) => {
@@ -26,25 +42,25 @@ class Database {
                 } else {
                     logger.info(`Database connected: ${dbPath}`);
 
-                    // Enable WAL mode for better concurrency
+                    // Enable pragmas sequentially to ensure they complete before resolve
                     this.db.run('PRAGMA journal_mode = WAL;', (err) => {
                         if (err) {
-                            logger.error('Failed to enable WAL mode:', err);
+                            logger.warn('WAL mode not supported (in-memory?), continuing anyway');
                         } else {
                             logger.info('WAL mode enabled');
                         }
-                    });
 
-                    // Enable foreign keys
-                    this.db.run('PRAGMA foreign_keys = ON;', (err) => {
-                        if (err) {
-                            logger.error('Failed to enable foreign keys:', err);
-                        } else {
-                            logger.info('Foreign keys enabled');
-                        }
+                        // Enable foreign keys
+                        this.db.run('PRAGMA foreign_keys = ON;', (err) => {
+                            if (err) {
+                                logger.error('Failed to enable foreign keys:', err);
+                                reject(err);
+                            } else {
+                                logger.info('Foreign keys enabled');
+                                resolve();
+                            }
+                        });
                     });
-
-                    resolve();
                 }
             });
         });
