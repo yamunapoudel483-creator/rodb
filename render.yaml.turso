@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: rodb-news
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: node server/server.js
+    envVars:
+      # Application Configuration
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: HOST
+        value: 0.0.0.0
+      
+      # TURSO DATABASE (persistent, survives pauses/redeploys/scaling)
+      # Get TURSO_CONNECTION_URL from: turso db create rodb-news
+      # Get TURSO_AUTH_TOKEN from: turso db tokens create rodb-news
+      - key: TURSO_CONNECTION_URL
+        value: libsql://rodb-news-YOUR_USERNAME.turso.io
+      - key: TURSO_AUTH_TOKEN
+        scope: SECRET
+      
+      # JWT SECRETS (Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+      - key: JWT_SECRET
+        scope: SECRET
+      - key: JWT_REFRESH_SECRET
+        scope: SECRET
+      
+      # LOGGING
+      - key: LOG_LEVEL
+        value: info
+      
+      # ORGANIZATION INFO
+      - key: ORG_NAME
+        value: Routine of Dhulikhel Banda
+      - key: ORG_EMAIL
+        value: rodb.dhulikhel@gmail.com
+
+# IMPORTANT NOTES:
+# 1. Before deploying, update TURSO_CONNECTION_URL with your actual Turso database URL
+# 2. Set TURSO_AUTH_TOKEN in Render dashboard as a SECRET variable
+# 3. All data persists across:
+#    - App restarts ✅
+#    - Server pauses ✅
+#    - Redeployments ✅
+#    - Scaling events ✅
+# 4. This replaces the old DB_PATH=/tmp/rodb.db configuration
+# 5. No more data loss on redeploy!
