@@ -178,9 +178,25 @@ async function optionalAuth(req, res, next) {
     next();
 }
 
+// Require journalist role
+function requireJournalist(req, res, next) {
+    if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Check if user is a journalist
+    if (!req.user.is_journalist && !req.user.permissions?.includes('article.create')) {
+        logger.warn(`Journalist access denied for user ${req.user.id}`);
+        return res.status(403).json({ error: 'Journalist access required' });
+    }
+
+    next();
+}
+
 module.exports = {
     authenticate,
     requireRole,
     requirePermission,
     optionalAuth,
+    requireJournalist,
 };

@@ -27,7 +27,7 @@ class TursoDatabase {
 
             // Test connection
             const result = await this.db.execute('SELECT 1 as connection_test');
-            logger.info('✅ Successfully connected to Turso database');
+            logger.info('Successfully connected to Turso database');
             logger.info(`Database: ${dbUrl}`);
 
             return true;

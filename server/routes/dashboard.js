@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const database = require('../config/database');
 const { authenticate, requireRole } = require('../middlewares/auth');
+const { verifyAdminToken } = require('./admin-auth');
+const logger = require('../utils/logger');
 
 // Dashboard stats (admin only)
 router.get('/stats', authenticate, requireRole('super_admin', 'admin', 'editor'), async (req, res) => {
@@ -81,6 +83,70 @@ router.get('/stats', authenticate, requireRole('super_admin', 'admin', 'editor')
             pendingApprovals: 0,
             breakingNews: 0,
         });
+    }
+});
+
+// Get all OAuth users (admin only)
+router.get('/oauth-users', verifyAdminToken, async (req, res) => {
+    try {
+        const User = require('../models/User');
+        const users = await User.getAllOAuthEmails();
+        res.json({ users });
+    } catch (error) {
+        logger.error('OAuth users fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch OAuth users' });
+    }
+});
+
+// Get all journalists (admin only)
+router.get('/journalists', verifyAdminToken, async (req, res) => {
+    try {
+        const User = require('../models/User');
+        const journalists = await User.getAllJournalists();
+        res.json({ journalists });
+    } catch (error) {
+        logger.error('Journalists fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch journalists' });
+    }
+});
+
+// Grant journalist access (admin only)
+router.post('/grant-journalist/:userId', verifyAdminToken, async (req, res) => {
+    try {
+        const User = require('../models/User');
+        const userId = parseInt(req.params.userId, 10);
+
+        // Verify user exists
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Grant journalist access
+        await User.grantJournalistAccess(userId, req.adminId || 1);
+
+        logger.info(`Journalist access granted to user ${userId}`);
+        res.json({ message: 'Journalist access granted successfully', user });
+    } catch (error) {
+        logger.error('Grant journalist error:', error);
+        res.status(500).json({ error: error.message || 'Failed to grant journalist access' });
+    }
+});
+
+// Revoke journalist access (admin only)
+router.post('/revoke-journalist/:userId', verifyAdminToken, async (req, res) => {
+    try {
+        const User = require('../models/User');
+        const userId = parseInt(req.params.userId, 10);
+
+        // Revoke journalist access
+        await User.revokeJournalistAccess(userId, req.adminId || 1);
+
+        logger.info(`Journalist access revoked for user ${userId}`);
+        res.json({ message: 'Journalist access revoked successfully' });
+    } catch (error) {
+        logger.error('Revoke journalist error:', error);
+        res.status(500).json({ error: error.message || 'Failed to revoke journalist access' });
     }
 });
 

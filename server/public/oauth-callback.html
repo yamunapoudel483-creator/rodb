@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Login Success - RODB</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .title {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .success-icon {
+            display: none;
+            font-size: 4rem;
+            color: #10b981;
+            margin-bottom: 20px;
+        }
+
+        .error-icon {
+            display: none;
+            font-size: 4rem;
+            color: #ef4444;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+
+        .error {
+            color: #ef4444;
+            background-color: #fef2f2;
+        }
+
+        .success {
+            color: #10b981;
+            background-color: #f0fdf4;
+        }
+
+        .btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="logo">RODB</div>
+        <h1 class="title">OAuth Authentication</h1>
+        <p class="subtitle">Processing your login...</p>
+
+        <div class="spinner" id="spinner"></div>
+        <div class="success-icon" id="successIcon">✓</div>
+        <div class="error-icon" id="errorIcon">✗</div>
+
+        <div class="message" id="message"></div>
+        <a href="/" class="btn" id="homeBtn" style="display: none;">Go to Homepage</a>
+    </div>
+
+    <script>
+        // Parse tokens from URL hash
+        function parseHash() {
+            const hash = window.location.hash.substring(1);
+            const params = {};
+            hash.split('&').forEach(param => {
+                const [key, value] = param.split('=');
+                if (key && value) {
+                    params[key] = decodeURIComponent(value);
+                }
+            });
+            return params;
+        }
+
+        // Store tokens and redirect
+        async function handleCallback() {
+            try {
+                const params = parseHash();
+
+                if (!params.token) {
+                    throw new Error('No authentication token received');
+                }
+
+                // Store tokens
+                localStorage.setItem('jwt_token', params.token);
+                if (params.refresh) {
+                    localStorage.setItem('refresh_token', params.refresh);
+                }
+
+                // Verify token and get user info
+                const response = await fetch('/api/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${params.token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to verify authentication');
+                }
+
+                const data = await response.json();
+                const user = data.user;
+
+                // Show success
+                document.getElementById('spinner').style.display = 'none';
+                document.getElementById('successIcon').style.display = 'block';
+                document.getElementById('message').innerHTML = `
+                    <p class="success">
+                        <strong>Welcome, ${user.full_name || user.username}!</strong><br>
+                        ${user.is_journalist ? 'Redirecting to Journalist Dashboard...' : 'Redirecting to homepage...'}
+                    </p>
+                `;
+
+                // Redirect based on user role
+                setTimeout(() => {
+                    if (user.is_journalist) {
+                        window.location.href = '/journalist/dashboard.html';
+                    } else {
+                        window.location.href = '/';
+                    }
+                }, 1500);
+
+            } catch (error) {
+                console.error('OAuth callback error:', error);
+
+                // Show error
+                document.getElementById('spinner').style.display = 'none';
+                document.getElementById('errorIcon').style.display = 'block';
+                document.getElementById('message').innerHTML = `
+                    <p class="error">
+                        <strong>Authentication Failed</strong><br>
+                        ${error.message || 'An unknown error occurred'}
+                    </p>
+                `;
+                document.getElementById('homeBtn').style.display = 'inline-block';
+            }
+        }
+
+        // Run on page load
+        handleCallback();
+    </script>
+</body>
+
+</html>

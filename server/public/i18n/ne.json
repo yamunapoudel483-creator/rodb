@@ -23,9 +23,13 @@
     "title": "धुलिखेल बान्दा दिनचर्या",
     "searchPlaceholder": "समाचार खोज्नुहोस्...",
     "about": "बारेमा",
+    "aboutUs": "हामीबारे",
     "contact": "संपर्क",
+    "contactInfo": "संपर्क जानकारी",
+    "navigate": "नेभिगेट गर्नुहोस्",
     "categories": "श्रेणीहरू",
     "trending": "ट्रेन्डिङ समाचार",
+    "trendingNews": "ट्रेन्डिङ समाचार",
     "hotNews": "तातो समाचार",
     "newsFeed": "समाचार फिड",
     "featured": "विशेष",
@@ -35,7 +39,8 @@
     "noArticles": "अहिले कुनै पनि लेख उपलब्ध छैन।",
     "noImage": "कुनै छवि छैन",
     "views": "दृश्यहरू",
-    "comments": "टिप्पणीहरू"
+    "comments": "टिप्पणीहरू",
+    "viewAll": "सबै हेर्नुहोस्"
   },
   "admin": {
     "dashboard": "ड्यासबोर्ड",

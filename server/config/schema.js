@@ -2,19 +2,23 @@ const database = require('./database');
 const logger = require('../utils/logger');
 
 async function createSchema() {
-    try {
-        logger.info('Creating database schema...');
+  try {
+    logger.info('Creating database schema...');
 
-        // Users table
-        await database.run(`
+    // Users table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username VARCHAR(50) UNIQUE NOT NULL,
+        username VARCHAR(50) UNIQUE,
         email VARCHAR(255) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255),
         full_name VARCHAR(255),
         bio TEXT,
         avatar_url VARCHAR(500),
+        oauth_provider VARCHAR(20),
+        oauth_id VARCHAR(255),
+        oauth_email VARCHAR(255),
+        is_journalist BOOLEAN DEFAULT 0,
         is_active BOOLEAN DEFAULT 1,
         is_suspended BOOLEAN DEFAULT 0,
         failed_login_attempts INTEGER DEFAULT 0,
@@ -27,8 +31,8 @@ async function createSchema() {
       )
     `);
 
-        // Roles table
-        await database.run(`
+    // Roles table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS roles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(50) UNIQUE NOT NULL,
@@ -37,8 +41,8 @@ async function createSchema() {
       )
     `);
 
-        // Permissions table
-        await database.run(`
+    // Permissions table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS permissions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(100) UNIQUE NOT NULL,
@@ -49,8 +53,8 @@ async function createSchema() {
       )
     `);
 
-        // Role permissions junction table
-        await database.run(`
+    // Role permissions junction table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS role_permissions (
         role_id INTEGER NOT NULL,
         permission_id INTEGER NOT NULL,
@@ -60,8 +64,8 @@ async function createSchema() {
       )
     `);
 
-        // User roles junction table
-        await database.run(`
+    // User roles junction table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS user_roles (
         user_id INTEGER NOT NULL,
         role_id INTEGER NOT NULL,
@@ -74,8 +78,8 @@ async function createSchema() {
       )
     `);
 
-        // Categories table
-        await database.run(`
+    // Categories table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(100) NOT NULL,
@@ -93,8 +97,8 @@ async function createSchema() {
       )
     `);
 
-        // Tags table
-        await database.run(`
+    // Tags table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS tags (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(100) UNIQUE NOT NULL,
@@ -104,8 +108,8 @@ async function createSchema() {
       )
     `);
 
-        // Articles table
-        await database.run(`
+    // Articles table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS articles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         headline VARCHAR(500) NOT NULL,
@@ -146,8 +150,8 @@ async function createSchema() {
       )
     `);
 
-        // Article tags junction table
-        await database.run(`
+    // Article tags junction table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS article_tags (
         article_id INTEGER NOT NULL,
         tag_id INTEGER NOT NULL,
@@ -157,8 +161,8 @@ async function createSchema() {
       )
     `);
 
-        // Article versions table
-        await database.run(`
+    // Article versions table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS article_versions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         article_id INTEGER NOT NULL,
@@ -173,8 +177,8 @@ async function createSchema() {
       )
     `);
 
-        // Media library table
-        await database.run(`
+    // Media library table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS media (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         filename VARCHAR(255) NOT NULL,
@@ -196,8 +200,8 @@ async function createSchema() {
       )
     `);
 
-        // Comments table
-        await database.run(`
+    // Comments table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS comments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         article_id INTEGER NOT NULL,
@@ -221,8 +225,8 @@ async function createSchema() {
       )
     `);
 
-        // Advertisements table
-        await database.run(`
+    // Advertisements table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS advertisements (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(255) NOT NULL,
@@ -243,8 +247,8 @@ async function createSchema() {
       )
     `);
 
-        // Analytics table
-        await database.run(`
+    // Analytics table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS analytics (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         article_id INTEGER,
@@ -264,8 +268,8 @@ async function createSchema() {
       )
     `);
 
-        // Audit logs table
-        await database.run(`
+    // Audit logs table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
@@ -280,8 +284,8 @@ async function createSchema() {
       )
     `);
 
-        // Sessions table
-        await database.run(`
+    // Sessions table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS sessions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -295,8 +299,8 @@ async function createSchema() {
       )
     `);
 
-        // Notifications table
-        await database.run(`
+    // Notifications table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS notifications (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -310,8 +314,8 @@ async function createSchema() {
       )
     `);
 
-        // User tips/submissions table
-        await database.run(`
+    // User tips/submissions table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS user_tips (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         submitter_name VARCHAR(255),
@@ -332,8 +336,8 @@ async function createSchema() {
       )
     `);
 
-        // Settings table
-        await database.run(`
+    // Settings table
+    await database.run(`
       CREATE TABLE IF NOT EXISTS settings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         key VARCHAR(100) UNIQUE NOT NULL,
@@ -346,25 +350,25 @@ async function createSchema() {
       )
     `);
 
-        // Create indexes for performance
-        await database.run('CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status)');
-        await database.run('CREATE INDEX IF NOT EXISTS idx_articles_published ON articles(published_at)');
-        await database.run('CREATE INDEX IF NOT EXISTS idx_articles_category ON articles(category_id)');
-        await database.run('CREATE INDEX IF NOT EXISTS idx_articles_author ON articles(author_id)');
-        await database.run('CREATE INDEX IF NOT EXISTS idx_articles_slug ON articles(slug)');
-        await database.run('CREATE INDEX IF NOT EXISTS idx_comments_article ON comments(article_id)');
-        await database.run('CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status)');
-        await database.run('CREATE INDEX IF NOT EXISTS idx_analytics_article ON analytics(article_id)');
-        await database.run('CREATE INDEX IF NOT EXISTS idx_analytics_event ON analytics(event_type)');
-        await database.run('CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)');
-        await database.run('CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)');
+    // Create indexes for performance
+    await database.run('CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status)');
+    await database.run('CREATE INDEX IF NOT EXISTS idx_articles_published ON articles(published_at)');
+    await database.run('CREATE INDEX IF NOT EXISTS idx_articles_category ON articles(category_id)');
+    await database.run('CREATE INDEX IF NOT EXISTS idx_articles_author ON articles(author_id)');
+    await database.run('CREATE INDEX IF NOT EXISTS idx_articles_slug ON articles(slug)');
+    await database.run('CREATE INDEX IF NOT EXISTS idx_comments_article ON comments(article_id)');
+    await database.run('CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status)');
+    await database.run('CREATE INDEX IF NOT EXISTS idx_analytics_article ON analytics(article_id)');
+    await database.run('CREATE INDEX IF NOT EXISTS idx_analytics_event ON analytics(event_type)');
+    await database.run('CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)');
+    await database.run('CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)');
 
-        logger.info('Database schema created successfully');
-        return true;
-    } catch (error) {
-        logger.error('Schema creation error:', error);
-        throw error;
-    }
+    logger.info('Database schema created successfully');
+    return true;
+  } catch (error) {
+    logger.error('Schema creation error:', error);
+    throw error;
+  }
 }
 
 module.exports = { createSchema };

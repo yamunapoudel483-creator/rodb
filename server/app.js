@@ -42,7 +42,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use((req, res, next) => {
     // Override res.json to use our custom replacer
     const originalJson = res.json;
-    res.json = function(data) {
+    res.json = function (data) {
         try {
             // Use our replacer to handle unsupported types
             const jsonString = JSON.stringify(data, jsonReplacer);
@@ -81,9 +81,29 @@ app.use((req, res, next) => {
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Session middleware for OAuth
+const session = require('express-session');
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'default-session-secret-change-this',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 1000 * 60 * 60 * 24 // 24 hours
+    }
+}));
+
+// Passport initialization
+const passport = require('./config/passport');
+app.use(passport.initialize());
+app.use(passport.session());
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin-auth', adminAuthRoutes);
+app.use('/api/oauth', require('./routes/oauth'));
+app.use('/api/journalist', require('./routes/journalist'));
 app.use('/api/articles', articleRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/tags', tagRoutes);
@@ -109,6 +129,10 @@ app.get('/article.html', (req, res) => {
 
 app.get('/category/:slug', (req, res) => {
     res.sendFile(path.join(__dirname, 'public/site/index.html'));
+});
+
+app.get('/journalist', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/journalist/dashboard.html'));
 });
 
 app.get('/admin', (req, res) => {

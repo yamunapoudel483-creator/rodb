@@ -24,7 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDate();
     loadNavigation();
     loadNewsTicker();
-    loadAds();
     loadCategoriesForMenu();
     loadInfoSettings();
     setupModals();
@@ -56,7 +55,13 @@ document.addEventListener('DOMContentLoaded', () => {
         loadFeaturedHeadlines(); // Right news feed
         loadHotNews(); // Right
         loadTrending(); // Right Widget
+        
+        // Initialize scroll detection for desktop columns
+        initDesktopColumnScrollDetection();
     }
+    
+    // Load ads after main content (deferred for performance)
+    requestIdleCallback ? requestIdleCallback(() => loadAds()) : setTimeout(() => loadAds(), 1500);
 });
 
 function renderFeedMeta(article) {
@@ -70,14 +75,86 @@ function toggleMenu() {
     const mobileMenu = document.getElementById('mobileMenu');
     if (mobileMenu.style.display === 'block') {
         mobileMenu.style.display = 'none';
+        document.body.style.overflow = 'auto';
     } else {
         mobileMenu.style.display = 'block';
+        document.body.style.overflow = 'hidden';
     }
 }
 
 function closeMenu() {
     const mobileMenu = document.getElementById('mobileMenu');
     mobileMenu.style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+// Desktop Column Scroll Detection - Hide header/ad when scrolling in columns, keep ticker at top
+function initDesktopColumnScrollDetection() {
+    const topBar = document.querySelector('.top-bar');
+    const mainHeader = document.querySelector('.main-header');
+    const headerAdWrapper = document.querySelector('.header-ad-wrapper');
+    const body = document.body;
+    const colLeft = document.querySelector('.col-left');
+    const colMiddle = document.querySelector('.col-middle');
+    const colRight = document.querySelector('.col-right');
+    const mainContainer = document.querySelector('.main-container');
+    
+    if (!colLeft || !colMiddle || !colRight) return;
+    
+    let headerHidden = false;
+    
+    const hideHeader = () => {
+        if (!headerHidden) {
+            topBar?.classList.add('hidden');
+            mainHeader?.classList.add('hidden');
+            headerAdWrapper?.classList.add('hidden');
+            body.style.paddingTop = '0';
+            if (mainContainer) {
+                mainContainer.style.paddingTop = '50px'; // Ticker height
+            }
+            headerHidden = true;
+        }
+    };
+    
+    const showHeader = () => {
+        if (headerHidden) {
+            topBar?.classList.remove('hidden');
+            mainHeader?.classList.remove('hidden');
+            headerAdWrapper?.classList.remove('hidden');
+            body.style.paddingTop = '';
+            if (mainContainer) {
+                mainContainer.style.paddingTop = '50px'; // Always 50px for ticker
+            }
+            headerHidden = false;
+        }
+    };
+    
+    // Listen to scroll on left column (News Feed)
+    colLeft.addEventListener('scroll', () => {
+        if (colLeft.scrollTop > 20) {
+            hideHeader();
+        } else {
+            showHeader();
+        }
+    });
+    
+    // Listen to scroll on middle column (Main content)
+    colMiddle.addEventListener('scroll', () => {
+        if (colMiddle.scrollTop > 20) {
+            hideHeader();
+        } else {
+            showHeader();
+        }
+    });
+    
+    // Listen to scroll on right column (Trending)
+    colRight.addEventListener('scroll', () => {
+        if (colRight.scrollTop > 20) {
+            hideHeader();
+        } else {
+            showHeader();
+        }
+    });
 }
 
 // Load articles for a specific category
@@ -129,7 +206,7 @@ async function loadCategoryArticles(categorySlug) {
                 
                 // Load articles
                 if (data.articles && data.articles.length > 0) {
-                    loadArticlesGrid(data.articles, articlesContainer);
+                    loadMobileNewsFeedCards(data.articles, articlesContainer);
                 } else {
                     articlesContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:20px;">यस वर्गमा कुनै समाचार उपलब्ध छैन</p>';
                 }
@@ -238,6 +315,9 @@ function initHeaderScroll() {
     let lastScrollY = window.scrollY;
     const topBar = document.querySelector('.top-bar');
     const mainHeader = document.querySelector('.main-header');
+    const headerAdWrapper = document.querySelector('.header-ad-wrapper');
+    const tickerWrap = document.querySelector('.ticker-wrap');
+    const newsGridLayout = document.querySelector('.news-grid-layout');
 
     window.addEventListener('scroll', () => {
         const currentScrollY = window.scrollY;
@@ -246,10 +326,31 @@ function initHeaderScroll() {
         if (currentScrollY > lastScrollY && currentScrollY > 10) {
             topBar.classList.add('hidden');
             mainHeader.classList.add('hidden');
+            if (headerAdWrapper) headerAdWrapper.style.display = 'none';
+            // Adjust ticker to stick at top when header is hidden
+            if (tickerWrap) {
+                tickerWrap.style.position = 'fixed';
+                tickerWrap.style.top = '0';
+                tickerWrap.style.zIndex = '999';
+            }
+            // Adjust grid layout to stick below ticker when headers are hidden
+            if (newsGridLayout) {
+                newsGridLayout.style.top = 'calc(50px + 24px)';
+            }
         } else {
             // Show on scroll up
             topBar.classList.remove('hidden');
             mainHeader.classList.remove('hidden');
+            if (headerAdWrapper) headerAdWrapper.style.display = 'flex';
+            // Reset ticker to sticky positioning
+            if (tickerWrap) {
+                tickerWrap.style.position = 'sticky';
+                tickerWrap.style.top = 'var(--topbar-height)';
+            }
+            // Reset grid layout positioning
+            if (newsGridLayout) {
+                newsGridLayout.style.top = 'calc(var(--topbar-height) + var(--main-header-height) + 50px)';
+            }
         }
         lastScrollY = currentScrollY;
     });
@@ -257,20 +358,44 @@ function initHeaderScroll() {
 // Initialize scroll logic
 initHeaderScroll();
 
+// Mobile Header Ad Scroll Hide Effect
+function initMobileHeaderAdScroll() {
+    const mobileHeaderAdContainer = document.getElementById('mobileHeaderAdContainer');
+    if (!mobileHeaderAdContainer || window.innerWidth > 768) return;
+
+    let lastScrollY = window.scrollY;
+
+    window.addEventListener('scroll', () => {
+        const currentScrollY = window.scrollY;
+
+        // Hide on scroll down (scrolled more than 20px)
+        if (currentScrollY > lastScrollY && currentScrollY > 20) {
+            mobileHeaderAdContainer.classList.add('hidden-scroll');
+        } else {
+            // Show on scroll up or near top
+            mobileHeaderAdContainer.classList.remove('hidden-scroll');
+        }
+        lastScrollY = currentScrollY;
+    });
+}
+
+// Initialize mobile header ad scroll after a short delay
+setTimeout(() => initMobileHeaderAdScroll(), 500);
+
 // Theme
 function initTheme() {
     const toggle = document.getElementById('themeToggle');
     const mobileToggle = document.getElementById('mobileThemeToggle');
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
+    let currentTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', currentTheme);
     
     const updateToggleText = () => {
-        const text = savedTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+        const text = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
         if (toggle) toggle.textContent = text;
         if (mobileToggle) {
             mobileToggle.innerHTML = `
                 <svg class="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    ${savedTheme === 'dark' 
+                    ${currentTheme === 'dark' 
                         ? '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>'
                         : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>'
                     }
@@ -282,10 +407,9 @@ function initTheme() {
     updateToggleText();
 
     const handleThemeChange = () => {
-        const current = document.documentElement.getAttribute('data-theme');
-        const newTheme = current === 'light' ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
+        currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+        localStorage.setItem('theme', currentTheme);
         updateToggleText();
     };
 
@@ -432,47 +556,59 @@ async function loadInfoSettings() {
 // Ticker
 async function loadNewsTicker() {
     try {
-        const response = await fetch(`${API_BASE}/settings/public`);
-        const data = await response.json();
-
-        const tickerEnabledSetting = data.settings?.find(s => s.key === 'ticker_enabled');
-        const tickerEnabled = tickerEnabledSetting?.value === 'true' || tickerEnabledSetting?.value === true;
-
-        console.log('Ticker enabled:', tickerEnabled, 'Raw value:', tickerEnabledSetting?.value);
-
-        if (!tickerEnabled) {
-            // Force show for now if debug needed, but respecting setting
-            document.getElementById('newsTicker').style.display = 'none';
-            return;
+        // Try to load from journalist API public endpoint first (live ticker items)
+        let items = [];
+        try {
+            const response = await fetch(`/api/journalist/news-ticker/public/active`);
+            if (response.ok) {
+                const data = await response.json();
+                items = data.items?.map(i => ({
+                    text: i.title,
+                    link: i.link_url
+                })) || [];
+            }
+        } catch (e) {
+            console.log('Ticker API not available, using fallback');
         }
 
-        // Show ticker
-        document.getElementById('newsTicker').style.display = 'block';
-
-        const tickerText = data.settings?.find(s => s.key === 'ticker_text')?.value;
-        let items = [];
-        if (tickerText && tickerText.trim()) {
-            items = tickerText.split('|').map(item => item.trim()).filter(item => item);
-        } else {
-            // Fallback to latest articles
-            const artRes = await fetch(`${API_BASE}/articles?limit=5&status=published`);
-            const artData = await artRes.json();
-            items = artData.articles.map(a => a.headline);
+        // Fallback to latest articles if no ticker items
+        if (items.length === 0) {
+            try {
+                const artRes = await fetch(`${API_BASE}/articles?limit=8&status=published`);
+                const artData = await artRes.json();
+                items = artData.articles?.map(a => ({
+                    text: a.headline,
+                    link: `/article/${a.slug}`
+                })) || [];
+            } catch (e) {
+                console.error('Failed to load fallback articles');
+            }
         }
 
         if (items.length > 0) {
-            // Duplicate items for continuous loop effect
-            const html = items.map(item => `<span class="ticker-item">${item}</span>`).join('');
+            // Show ticker
+            document.getElementById('newsTicker').style.display = 'block';
+            
+            // Create scrolling ticker HTML with links
+            const html = items.map((item, idx) => 
+                `<span class="ticker-item" onclick="${item.link ? `window.location.href='${item.link}'` : ''};" style="${item.link ? 'cursor:pointer;' : ''}">
+                    ${item.text}
+                </span>`
+            ).join(' • ');
+            
             const tickerItemsContainer = document.getElementById('tickerItems');
-            // Add items twice for seamless loop
-            tickerItemsContainer.innerHTML = html + html;
+            // Add items multiple times for seamless loop effect
+            tickerItemsContainer.innerHTML = html + ' • ' + html + ' • ' + html;
 
             // Add visible class to show ticker
             document.getElementById('newsTicker').classList.add('visible');
+        } else {
+            document.getElementById('newsTicker').style.display = 'none';
         }
 
     } catch (e) {
         console.error('Ticker error:', e);
+        document.getElementById('newsTicker').style.display = 'none';
     }
 }
 
@@ -791,32 +927,43 @@ function renderArticlesHtml(articles) {
         }
         
         return `
-        <a href="/article.html?slug=${article.slug}" class="feed-card" style="text-decoration: none; color: inherit;">
-            ${article.featured_image_url ?
-            `<div class="feed-card-image-container">
-                <img src="${imageUrl}" 
-                     ${!isDataUrl ? `srcset="${optimizeImageUrl(article.featured_image_url, 600)} 600w, ${optimizeImageUrl(article.featured_image_url, 1200)} 1200w"` : ''}
-                     alt="${article.headline}" 
-                     loading="lazy"
-                     style="width: 100%; height: 100%; object-fit: contain;">
-                <div class="feed-card-overlay">
-                    <h2 style="margin: 0; color: white;">
-                        ${article.headline}
-                    </h2>
-                    <div class="feed-summary" style="color: rgba(255,255,255,0.95);">
-                        ${summaryText}
+        <div class="feed-item-wrapper">
+            <a href="/article.html?slug=${article.slug}" class="feed-card" style="text-decoration: none; color: inherit;">
+                ${article.featured_image_url ?
+                `<div class="feed-card-image-container">
+                    <img src="${imageUrl}" 
+                         ${!isDataUrl ? `srcset="${optimizeImageUrl(article.featured_image_url, 600)} 600w, ${optimizeImageUrl(article.featured_image_url, 1200)} 1200w"` : ''}
+                         alt="${article.headline}" 
+                         loading="lazy"
+                         style="width: 100%; height: 100%; object-fit: contain;">
+                    <div class="feed-card-overlay">
+                        <h2 style="margin: 0; color: white;">
+                            ${article.headline}
+                        </h2>
+                        <div class="feed-summary" style="color: rgba(255,255,255,0.95);">
+                            ${summaryText}
+                        </div>
+                    </div>
+                </div>` :
+                `<div style="height: 300px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; padding: 20px; border-radius: 4px;">
+                    <div style="text-align: center; color: white;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 1.1em; font-weight: 700; line-height: 1.4;">
+                            ${article.headline}
+                        </h3>
+                        <div style="font-size: 0.9em; line-height: 1.45; opacity: 0.95;">
+                            ${summaryText}
+                        </div>
+                    </div>
+                </div>`}
+                
+                <div class="feed-content">
+                    <h3 class="feed-title">${article.headline}</h3>
+                    <div class="feed-meta">
+                        ${timeAgo(article.published_at, article.created_at)}
                     </div>
                 </div>
-            </div>` :
-            '<div style="height: 300px; background: var(--bg-body); display: flex; align-items: center; justify-content: center;"><p>No Image</p></div>'}
-            
-            <div class="feed-content">
-                <h3 class="feed-title">${article.headline}</h3>
-                <div class="feed-meta">
-                    ${timeAgo(article.published_at, article.created_at)}
-                </div>
-            </div>
-        </a>`;
+            </a>
+        </div>`;
     }).join('');
 }
 
@@ -1013,6 +1160,22 @@ async function loadMobileHomePageAds() {
             return ads[Math.floor(Math.random() * ads.length)];
         };
 
+        // Mobile Header Ad - Under ticker with scroll-hide effect
+        const headerAd = getRandomAd(adsByPlacement.header);
+        if (headerAd && window.innerWidth <= 768) {
+            const container = document.getElementById('mobile_ad_header');
+            if (container) {
+                const containerWrapper = document.getElementById('mobileHeaderAdContainer');
+                containerWrapper.style.display = 'block';
+                container.innerHTML = `
+                    <div style="position: relative; display: flex; justify-content: center; align-items: center; width: 100%; cursor: pointer; border-radius: 0; overflow: hidden;" onclick="trackAdClick('${headerAd.id}', '${headerAd.link_url}'); return false;">
+                        ${renderAdCreative(headerAd, true)}
+                    </div>
+                `;
+                trackAdImpression(headerAd.id);
+            }
+        }
+
         // Ad before trending
         const adBeforeTrending = getRandomAd([...adsByPlacement.content_top, ...adsByPlacement.content_bottom]);
         if (adBeforeTrending) {
@@ -1163,53 +1326,36 @@ async function loadTrending() {
         const container = document.getElementById('trendingList');
         if (!container) return;
 
-        // Debug log
-        console.log('Trending setting:', trendingSetting);
-        console.log('Trending setting value:', trendingSetting?.value);
-        console.log('Trending setting value trimmed:', trendingSetting?.value?.trim());
-
         // STRICT check: must have value AND it must not be empty after trim
         if (!trendingSetting || !trendingSetting.value || !trendingSetting.value.trim()) {
-            console.log('No trending articles configured - showing empty message');
             container.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No trending articles configured.</p>';
             return;
         }
         
-        // If we reach here, we have a value - parse and load articles
-        const articleIds = trendingSetting.value.split('\n').map(id => id.trim()).filter(Boolean);
-        console.log('Parsed article IDs:', articleIds);
+        // Parse article IDs
+        const articleIds = trendingSetting.value.split('\n').map(id => id.trim()).filter(Boolean).slice(0, 20);
         
         if (articleIds.length === 0) {
-            console.log('No article IDs after parsing');
             container.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No trending articles configured.</p>';
             return;
         }
 
-        const articles = [];
-        const seenIds = new Set();
-        const invalidIds = [];
+        // Fetch a batch of published articles and filter locally (much faster than sequential calls)
+        const articlesResponse = await fetch(`${API_BASE}/articles?limit=100&status=published`);
+        const articlesData = await articlesResponse.json();
+        const allArticles = articlesData.articles || [];
+
+        // Create a map for quick lookup
+        const articleMap = new Map(allArticles.map(a => [String(a.id), a]));
         
+        // Preserve the order specified in admin settings
+        const articles = [];
         for (const id of articleIds) {
-            if (seenIds.has(id)) continue; // Skip duplicate IDs
-            try {
-                console.log('Fetching article ID:', id);
-                const response = await fetch(`${API_BASE}/articles/${id}`);
-                const data = await response.json();
-                if (data.article && data.article.status === 'published') {
-                    articles.push(data.article);
-                    seenIds.add(id);
-                    console.log('Added article:', data.article.headline);
-                } else {
-                    invalidIds.push(id);
-                    console.log('Invalid article ID or not published:', id);
-                }
-            } catch (e) {
-                console.error('Error loading article:', id, e);
-                invalidIds.push(id);
+            const article = articleMap.get(String(id));
+            if (article) {
+                articles.push(article);
             }
         }
-
-        console.log('Final articles count:', articles.length);
         
         if (articles.length > 0) {
             container.innerHTML = '<div class="trending-items">' + articles.map((article, idx) => `
@@ -1225,12 +1371,7 @@ async function loadTrending() {
                 </div>
             `).join('') + '</div>';
         } else {
-            // If all IDs are invalid, show message
             container.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No valid trending articles configured. Please update the trending articles in admin settings.</p>';
-        }
-
-        if (invalidIds.length > 0) {
-            showTrendingWarning(`Warning: Invalid article ID(s): ${invalidIds.join(', ')}`);
         }
     } catch (e) {
         console.error('Trending error:', e);
@@ -1335,12 +1476,90 @@ async function loadMobileAds() {
     }
 }
 
+// Load category sections for mobile layout
+async function loadMobileCategorySections() {
+    const container = document.getElementById('mobileCategorySections');
+    if (!container || window.innerWidth > 768) return;
+
+    try {
+        // Fetch all categories
+        const categoriesResponse = await fetch(`${API_BASE}/categories`);
+        const categoriesData = await categoriesResponse.json();
+        
+        if (!categoriesData.categories || categoriesData.categories.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        // Limit to 3 categories for mobile view
+        const categories = categoriesData.categories.slice(0, 3);
+        let categoryHTML = '';
+
+        // Fetch articles for each category
+        for (const category of categories) {
+            try {
+                const articlesResponse = await fetch(`${API_BASE}/articles?category=${category.id}&limit=3&status=published`);
+                const articlesData = await articlesResponse.json();
+                const articles = articlesData.articles || [];
+
+                if (articles.length === 0) continue;
+
+                categoryHTML += `
+                    <div class="mobile-category-panel">
+                        <div class="mobile-category-header">
+                            <span>${category.name}</span>
+                            <a href="/category/${category.slug}">देख्नुहोस्</a>
+                        </div>
+                        <div class="mobile-category-articles">
+                `;
+
+                // Add articles for this category
+                for (const article of articles.slice(0, 3)) {
+                    const imageUrl = article.featured_image_url ? 
+                        (article.featured_image_url.startsWith('data:') ? 
+                            article.featured_image_url : 
+                            optimizeImageUrl(article.featured_image_url, 400)) 
+                        : '';
+                    
+                    // Get summary or use a truncated version of content
+                    const summary = article.summary || (article.content ? article.content.substring(0, 200) + '...' : 'No summary available');
+                    
+                    categoryHTML += `
+                        <a href="/article.html?slug=${article.slug}" class="mobile-category-article">
+                            ${imageUrl ? 
+                                `<img src="${imageUrl}" alt="${article.headline}" class="mobile-category-article-image">` :
+                                `<div class="mobile-category-article-image" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; text-align: center; padding: 10px; font-size: 0.9em; line-height: 1.35;">${article.headline.substring(0, 60)}</div>`
+                            }
+                            <div class="mobile-category-article-content">
+                                <h4 class="mobile-category-article-title">${article.headline}</h4>
+                                <div class="mobile-category-article-summary">${summary}</div>
+                                <div class="mobile-category-article-meta">${timeAgo(article.published_at, article.created_at)}</div>
+                            </div>
+                        </a>
+                    `;
+                }
+
+                categoryHTML += `
+                        </div>
+                    </div>
+                `;
+            } catch (e) {
+                console.error(`Error loading category ${category.name}:`, e);
+            }
+        }
+
+        container.innerHTML = categoryHTML;
+    } catch (e) {
+        console.error('Mobile category sections error:', e);
+    }
+}
+
 async function loadMobileLayout() {
     if (window.innerWidth > 768) return; // Only for mobile
     
     try {
-        // Load more articles for all sections
-        const response = await fetch(`${API_BASE}/articles?limit=200&status=published`);
+        // Load articles - fetch all available articles
+        const response = await fetch(`${API_BASE}/articles?limit=500&status=published`);
         const data = await response.json();
         
         if (!data.articles || data.articles.length === 0) return;
@@ -1352,6 +1571,9 @@ async function loadMobileLayout() {
         
         // Load trending from admin settings (not just first 4 articles)
         loadMobileTrendingFromSettings();
+        
+        // Load category sections
+        loadMobileCategorySections();
         
         // Load hot news for mobile
         loadMobileHotNews();
@@ -1374,15 +1596,17 @@ function loadMobileTopArticles(articles) {
     const html = articles.map(article => {
         const isDataUrl = article.featured_image_url && article.featured_image_url.startsWith('data:');
         const imageUrl = isDataUrl ? article.featured_image_url : optimizeImageUrl(article.featured_image_url, 600);
+        const summary = article.summary || (article.content ? article.content.substring(0, 150) + '...' : '');
         
         return `
         <a href="/article.html?slug=${article.slug}" class="mobile-top-article" style="text-decoration: none; color: inherit;">
             ${article.featured_image_url ? 
                 `<img src="${imageUrl}" alt="${article.headline}" class="mobile-top-article-image">` :
-                `<div class="mobile-top-article-image" style="background: var(--bg-body); display: flex; align-items: center; justify-content: center;">No Image</div>`
+                `<div class="mobile-top-article-image" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; padding: 15px; color: white; font-weight: 700; font-size: 1em; text-align: center; line-height: 1.4;">${article.headline.substring(0, 60)}</div>`
             }
             <div class="mobile-top-article-content">
                 <h3 class="mobile-top-article-title">${article.headline}</h3>
+                ${summary ? `<div style="font-size: 0.85em; color: var(--text-muted); line-height: 1.4; margin: 4px 0;">${summary}</div>` : ''}
                 <div class="mobile-top-article-meta">${timeAgo(article.published_at, article.created_at)}</div>
             </div>
         </a>
@@ -1469,28 +1693,29 @@ async function loadMobileTrendingFromSettings() {
     }
 }
 
-function loadMobileNewsFeedCards(articles) {
-    const container = document.getElementById('mobileNewsFeed');
-    if (!container) return;
+function loadMobileNewsFeedCards(articles, container = null) {
+    const feedContainer = container || document.getElementById('mobileNewsFeed');
+    if (!feedContainer) return;
     
     const html = articles.map(article => {
         const isDataUrl = article.featured_image_url && article.featured_image_url.startsWith('data:');
         const imageUrl = isDataUrl ? article.featured_image_url : optimizeImageUrl(article.featured_image_url, 300);
+        const summary = article.summary || article.body.substring(0, 80).replace(/<[^>]*>/g, '');
         
         return `
         <a href="/article.html?slug=${article.slug}" class="mobile-feed-card" style="text-decoration: none; color: inherit;">
             ${article.featured_image_url ? 
                 `<img src="${imageUrl}" alt="${article.headline}" class="mobile-feed-card-image">` :
-                `<div class="mobile-feed-card-image" style="background: var(--bg-body); display: flex; align-items: center; justify-content: center; font-size: 0.8em; color: var(--text-muted);">No Image</div>`
+                `<div class="mobile-feed-card-image" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; padding: 12px; color: white; font-weight: 700; font-size: 0.85em; text-align: center; line-height: 1.35;">${article.headline.substring(0, 60)}</div>`
             }
             <div class="mobile-feed-card-content">
                 <h4 class="mobile-feed-card-title">${article.headline}</h4>
-                <p class="mobile-feed-card-summary">${article.summary || article.body.substring(0, 80).replace(/<[^>]*>/g, '')}</p>
+                <p class="mobile-feed-card-summary">${summary}</p>
             </div>
         </a>
     `}).join('');
     
-    container.innerHTML = html;
+    feedContainer.innerHTML = html;
 }
 
 // Load hot news for mobile layout
@@ -1598,7 +1823,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </h2>
                                 </div>
                             </div>` :
-                            '<div style="height: 300px; background: var(--bg-body); display: flex; align-items: center; justify-content: center;"><p>No Image</p></div>'}
+                            `<div style="height: 300px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; padding: 20px; border-radius: 4px;"><div style="text-align: center; color: white;"><h3 style="margin: 0; font-size: 1.1em; font-weight: 700; line-height: 1.4;">${article.headline}</h3></div></div>`}
                             <div class="feed-content">
                                 <div class="feed-meta">
                                     ${timeAgo(article.published_at, article.created_at)}
@@ -1623,7 +1848,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </h2>
                             </div>
                         </div>` :
-                        '<div style="height: 300px; background: var(--bg-body); display: flex; align-items: center; justify-content: center;"><p>No Image</p></div>'}
+                        `<div style="height: 300px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; padding: 20px; border-radius: 4px;"><div style="text-align: center; color: white;"><h3 style="margin: 0; font-size: 1.1em; font-weight: 700; line-height: 1.4;">${article.headline}</h3></div></div>`}
                         <div class="feed-content">
                             <div class="feed-meta">
                                 ${timeAgo(article.published_at, article.created_at)}
@@ -1647,7 +1872,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </h2>
                                 </div>
                             </div>` :
-                            '<div style="height: 300px; background: var(--bg-body); display: flex; align-items: center; justify-content: center;"><p>No Image</p></div>'}
+                            `<div style="height: 300px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; padding: 20px; border-radius: 4px;"><div style="text-align: center; color: white;"><h3 style="margin: 0; font-size: 1.1em; font-weight: 700; line-height: 1.4;">${article.headline}</h3></div></div>`}
                             <div class="feed-content">
                                 <div class="feed-meta">
                                     ${timeAgo(article.published_at, article.created_at)}
@@ -1687,3 +1912,98 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+/* ===== SOCIAL SHARING FUNCTIONALITY ===== */
+
+function generateShareButtons(article) {
+    const headline = (article.headline || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const summary = (article.summary || article.body?.substring(0, 100).replace(/<[^>]*>/g, '') || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const url = window.location.origin + '/article.html?slug=' + article.slug;
+    const image = article.featured_image_url || '';
+    
+    return `
+    <div class="share-section">
+        <div class="share-buttons">
+            <button class="share-btn facebook" onclick="shareOnFacebook('${headline}', '${summary}', '${url}', '${image}')" title="Share on Facebook">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+            </button>
+            <button class="share-btn x" onclick="shareOnX('${headline}', '${url}')" title="Share on X">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.6l-5.165-6.752-5.938 6.752h-3.308l7.733-8.835L.692 2.25h6.602l4.7 6.217 5.45-6.217zM17.002 18.807h1.844L6.803 3.992H4.85z"/>
+                </svg>
+            </button>
+            <button class="share-btn whatsapp" onclick="shareOnWhatsApp('${headline}', '${summary}', '${url}')" title="Share on WhatsApp">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a9.87 9.87 0 00-9.746 9.861c0 2.718.738 5.33 2.14 7.66l-2.35 7.34 7.494-2.976a9.9 9.9 0 004.738 1.2h.006c5.318 0 9.75-4.445 9.75-9.903 0-2.699-.719-5.206-2.078-7.38A9.865 9.865 0 0012.051 6.979"/>
+                </svg>
+            </button>
+            <button class="share-btn linkedin" onclick="shareOnLinkedIn('${headline}', '${summary}', '${url}')" title="Share on LinkedIn">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.475-2.236-1.986-2.236-1.081 0-1.722.722-2.004 1.418-.103.25-.13.599-.13.948v5.439h-3.554s.05-8.81 0-9.728h3.554v1.375c.427-.659 1.191-1.597 2.905-1.597 2.12 0 3.71 1.386 3.71 4.365v5.585zM5.337 8.855c-1.144 0-1.915-.759-1.915-1.71 0-.951.77-1.71 1.954-1.71 1.184 0 1.915.759 1.915 1.71 0 .951-.73 1.71-1.954 1.71zm1.6 11.597H3.738V9.579h3.199v10.873zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.225 0z"/>
+                </svg>
+            </button>
+            <button class="share-btn copy-link" onclick="copyShareLink('${url}')" title="Copy Link">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    `;
+}
+
+function shareOnFacebook(headline, summary, url, image) {
+    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(headline + ' - ' + summary)}`;
+    window.open(shareUrl, 'facebook-share-dialog', 'width=800,height=600');
+}
+
+function shareOnX(headline, url) {
+    const text = `${headline}\n\n${url}`;
+    const shareUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&via=rodb_news`;
+    window.open(shareUrl, 'x-share', 'width=550,height=420');
+}
+
+function shareOnWhatsApp(headline, summary, url) {
+    const text = `📰 *${headline}*\n\n${summary}\n\n${url}`;
+    const shareUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(shareUrl, '_blank');
+}
+
+function shareOnLinkedIn(headline, summary, url) {
+    const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
+    window.open(shareUrl, 'linkedin-share', 'width=550,height=420');
+}
+
+function copyShareLink(url) {
+    navigator.clipboard.writeText(url).then(() => {
+        showCopyNotification('Link copied to clipboard!');
+    }).catch(() => {
+        alert('Failed to copy link');
+    });
+}
+
+function showCopyNotification(message) {
+    const notification = document.createElement('div');
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #25D366;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 6px;
+        z-index: 3000;
+        animation: slideInRight 0.3s ease;
+        font-weight: 500;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 2000);
+}

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Routine of Dhulikhel News</title>
-    <link rel="icon" type="image/png" href="/public/fablo/favicon.ico">
+    <link rel="icon" type="image/png" href="/public/fablo/final.png">
     <link rel="stylesheet" href="/public/site/css/main.css">
     <link
         href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700&family=Roboto:wght@400;500;700&display=swap"
@@ -43,11 +43,14 @@
                 <button class="menu-toggle" id="menuToggleBtn" onclick="toggleMenu()">☰</button>
                 <a href="/" class="logo-link"
                     style="display: flex; align-items: center; gap: 15px; text-decoration: none;">
-                    <img src="/public/fablo/logo.png" alt="RODB" class="logo-img">
+                    <img src="/public/fablo/final.png" alt="RODB" class="logo-img">
                     <div class="logo-text">
                         <h1 style="margin: 0; font-size: 1.4em; color: var(--primary);">Routine of Dhulikhel&nbsp;News</h1>
                     </div>
                 </a>
+            </div>
+            <div class="header-ad-inline" id="headerAdWrapper">
+                <div class="header-ad" id="ad_header"></div>
             </div>
             <div class="header-actions">
                 <button id="themeToggle" class="theme-btn desktop-theme-btn">🌙</button>
@@ -61,13 +64,6 @@
             </div>
         </div>
     </header>
-
-    <!-- Header Ad Banner (Desktop) -->
-    <div class="header-ad-wrapper" id="headerAdWrapper">
-        <div class="container">
-            <div class="header-ad" id="ad_header"></div>
-        </div>
-    </div>
 
     <nav class="top-navigation" id="topNav">
         <div class="container">
@@ -86,6 +82,11 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Mobile Header Ad - Hidden on Scroll -->
+    <div id="mobileHeaderAdContainer" class="mobile-header-ad-container" style="display: none;">
+        <div class="mobile-header-ad" id="mobile_ad_header"></div>
     </div>
 
     <div class="mobile-menu" id="mobileMenu">
@@ -122,7 +123,7 @@
 
         <!-- Contact -->
         <div class="mobile-menu-section">
-            <h3 class="mobile-menu-title">Contact Info</h3>
+            <h3 class="mobile-menu-title" data-i18n="site.contactInfo">Contact Info</h3>
             <p id="mobileContact" class="mobile-menu-text"></p>
         </div>
     </div>
@@ -133,7 +134,7 @@
             <!-- Left Column: News Feed (Old Right) -->
             <aside class="col-left">
                 <div class="section-title">
-                    <h3>News Feed</h3>
+                    <h3 data-i18n="site.newsFeed">News Feed</h3>
                 </div>
                 <div id="leftNewsFeed" class="headline-list">
                     <!-- News Feed items load here -->
@@ -146,7 +147,7 @@
                 <div id="styles-social-feed" class="social-feed">
                     <!-- Articles load here -->
                 </div>
-                <button id="loadMore" class="load-more">Load More</button>
+                <button id="loadMore" class="load-more" data-i18n="site.loadMore">Load More</button>
             </div>
 
             <!-- Right Column: Trending News (Numbered List) -->
@@ -154,12 +155,12 @@
                 <div class="ad-slot" id="ad_right_before_trending"></div>
 
                 <div class="trending-widget">
-                    <h3>Trending News</h3>
+                    <h3 data-i18n="site.trendingNews">Trending News</h3>
                     <div id="trendingList"></div>
                 </div>
 
                 <div class="section-title" style="margin-top:24px;">
-                    <h3>Hot News</h3>
+                    <h3 data-i18n="site.hotNews">Hot News</h3>
                 </div>
                 <div class="hot-news-wrapper">
                     <ul id="hotNewsList" class="hot-news-bullets">
@@ -184,11 +185,16 @@
             <!-- Trending Section -->
             <div class="trending-section">
                 <div class="section-title">
-                    <h3>Trending News</h3>
+                    <h3 data-i18n="site.trendingNews">Trending News</h3>
                 </div>
                 <div class="trending-cards" id="mobileTrendingCards">
                     <!-- Trending articles with summaries will be inserted here -->
                 </div>
+            </div>
+
+            <!-- Category Sections -->
+            <div id="mobileCategorySections" class="mobile-category-sections">
+                <!-- Category panels will be inserted here -->
             </div>
 
             <!-- Hot News Section -->
@@ -202,12 +208,12 @@
             <!-- News Feed Section -->
             <div class="news-feed-section">
                 <div class="section-title">
-                    <h3>News Feed</h3>
+                    <h3 data-i18n="site.newsFeed">News Feed</h3>
                 </div>
                 <div id="mobileNewsFeed" class="mobile-feed-cards">
                     <!-- News feed cards will be inserted here -->
                 </div>
-                <button id="loadMoreMobile" class="load-more">Load More</button>
+                <button id="loadMoreMobile" class="load-more" data-i18n="site.loadMore">Load More</button>
             </div>
         </div>
     </main>
@@ -216,7 +222,7 @@
     <div id="aboutModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" data-target="aboutModal">&times;</span>
-            <h2>About Us</h2>
+            <h2 data-i18n="site.aboutUs">About Us</h2>
             <div id="aboutModalContent" class="modal-body"></div>
         </div>
     </div>
@@ -224,7 +230,7 @@
     <div id="contactModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" data-target="contactModal">&times;</span>
-            <h2>Contact Info</h2>
+            <h2 data-i18n="site.contactInfo">Contact Info</h2>
             <div id="contactModalContent" class="modal-body"></div>
         </div>
     </div>
@@ -236,11 +242,11 @@
                     <p>Routine of Dhulikhel News</p>
                 </div>
                 <div class="footer-links-col">
-                    <h4>Navigate</h4>
+                    <h4 data-i18n="site.navigate">Navigate</h4>
                     <ul id="footerNav"></ul>
                 </div>
                 <div class="footer-contact">
-                    <h4>Contact</h4>
+                    <h4 data-i18n="site.contact">Contact</h4>
                     <p>rodb.dhulikhel@gmail.com</p>
                 </div>
             </div>

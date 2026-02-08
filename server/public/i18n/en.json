@@ -23,9 +23,13 @@
     "title": "Routine of Dhulikhel News",
     "searchPlaceholder": "Search news...",
     "about": "About",
+    "aboutUs": "About Us",
     "contact": "Contact",
+    "contactInfo": "Contact Info",
+    "navigate": "Navigate",
     "categories": "Categories",
     "trending": "Trending News",
+    "trendingNews": "Trending News",
     "hotNews": "Hot News",
     "newsFeed": "News Feed",
     "featured": "Featured",
@@ -35,7 +39,8 @@
     "noArticles": "No articles available right now.",
     "noImage": "No Image",
     "views": "Views",
-    "comments": "Comments"
+    "comments": "Comments",
+    "viewAll": "View All"
   },
   "admin": {
     "dashboard": "Dashboard",

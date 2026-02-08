@@ -245,6 +245,128 @@ class User {
             [userId, roleId]
         );
     }
+
+    // Find or create OAuth user
+    static async findOrCreateOAuthUser(profile) {
+        const { provider, providerId, email, name, avatar } = profile;
+
+        // Try to find existing user by OAuth  ID
+        let user = await database.get(
+            'SELECT * FROM users WHERE oauth_provider = ? AND oauth_id = ?',
+            [provider, providerId]
+        );
+
+        if (user) {
+            // Update last login info if needed
+            delete user.password_hash;
+            return user;
+        }
+
+        // Try to find by email (user might have registered normally first)
+        user = await database.get(
+            'SELECT * FROM users WHERE email = ?',
+            [email]
+        );
+
+        if (user) {
+            // Link OAuth to existing account
+            await database.run(
+                'UPDATE users SET oauth_provider = ?, oauth_id = ?, oauth_email = ?, avatar_url = COALESCE(?, avatar_url) WHERE id = ?',
+                [provider, providerId, email, avatar, user.id]
+            );
+            delete user.password_hash;
+            return user;
+        }
+
+        // Create new OAuth user
+        const username = email.split('@')[0] + '_' + provider;
+        const result = await database.run(
+            `INSERT INTO users (username, email, oauth_provider, oauth_id, oauth_email, full_name, avatar_url, is_active) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [username, email, provider, providerId, email, name, avatar, 1]
+        );
+
+        return await this.findById(result.lastID);
+    }
+
+    // Find user by OAuth ID
+    static async findByOAuthId(provider, oauthId) {
+        return await database.get(
+            'SELECT * FROM users WHERE oauth_provider = ? AND oauth_id = ?',
+            [provider, oauthId]
+        );
+    }
+
+    // Get all OAuth users with emails (for admin dashboard)
+    static async getAllOAuthEmails() {
+        return await database.all(
+            `SELECT id, username, email, oauth_provider, oauth_email, is_journalist, created_at 
+             FROM users 
+             WHERE oauth_provider IS NOT NULL 
+             ORDER BY created_at DESC`
+        );
+    }
+
+    // Grant journalist access
+    static async grantJournalistAccess(userId, adminId) {
+        // Get journalist role
+        const role = await database.get('SELECT id FROM roles WHERE name = ?', ['journalist']);
+        if (!role) {
+            throw new Error('Journalist role not found');
+        }
+
+        // Set is_journalist flag
+        await database.run(
+            'UPDATE users SET is_journalist = 1 WHERE id = ?',
+            [userId]
+        );
+
+        // Assign journalist role
+        await this.assignRole(userId, role.id, adminId);
+
+        logger.info(`Journalist access granted to user ${userId} by admin ${adminId}`);
+    }
+
+    // Revoke journalist access
+    static async revokeJournalistAccess(userId, adminId) {
+        const role = await database.get('SELECT id FROM roles WHERE name = ?', ['journalist']);
+        if (!role) {
+            throw new Error('Journalist role not found');
+        }
+
+        // Remove is_journalist flag
+        await database.run(
+            'UPDATE users SET is_journalist = 0 WHERE id = ?',
+            [userId]
+        );
+
+        // Remove journalist role
+        await this.removeRole(userId, role.id);
+
+        logger.info(`Journalist access revoked for user ${userId} by admin ${adminId}`);
+    }
+
+    // Check if user is journalist
+    static async isJournalist(userId) {
+        const user = await database.get(
+            'SELECT is_journalist FROM users WHERE id = ?',
+            [userId]
+        );
+        return user ? Boolean(user.is_journalist) : false;
+    }
+
+    // Get all journalists
+    static async getAllJournalists() {
+        return await database.all(
+            `SELECT u.id, u.username, u.email, u.full_name, u.oauth_provider, u.created_at,
+                    COUNT(DISTINCT a.id) as article_count
+             FROM users u
+             LEFT JOIN articles a ON u.id = a.author_id
+             WHERE u.is_journalist = 1
+             GROUP BY u.id
+             ORDER BY u.created_at DESC`
+        );
+    }
 }
 
 module.exports = User;
