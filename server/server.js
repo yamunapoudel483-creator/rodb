@@ -247,9 +247,19 @@ async function seedDefaultData() {
 
 async function startServer() {
     try {
+        // Set startup timeout for Render (180 seconds)
+        const startupTimeout = setTimeout(() => {
+            logger.error('Server startup timeout - taking too long to initialize');
+            process.exit(1);
+        }, 180000);
+
         // Initialize database FIRST before loading app (which loads routes/models)
         logger.info('Initializing database...');
+        logger.info(`TURSO_CONNECTION_URL set: ${!!process.env.TURSO_CONNECTION_URL}`);
+        logger.info(`TURSO_AUTH_TOKEN set: ${!!process.env.TURSO_AUTH_TOKEN}`);
+        
         await database.initialize();
+        clearTimeout(startupTimeout);
         logger.info('✓ Database initialized successfully');
 
         // Create schema if tables don't exist

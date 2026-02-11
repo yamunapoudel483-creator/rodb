@@ -12,27 +12,41 @@ class TursoDatabase {
             const dbUrl = process.env.TURSO_CONNECTION_URL || process.env.DATABASE_URL;
             const authToken = process.env.TURSO_AUTH_TOKEN;
 
-            if (!dbUrl || !authToken) {
-                throw new Error('TURSO_CONNECTION_URL and TURSO_AUTH_TOKEN environment variables are required');
+            if (!dbUrl) {
+                throw new Error('TURSO_CONNECTION_URL environment variable is required. Set it in Render > Environment Variables');
+            }
+            if (!authToken) {
+                throw new Error('TURSO_AUTH_TOKEN environment variable is required. Set it in Render > Environment Variables');
             }
 
             logger.info('Connecting to Turso database...');
             logger.info(`Database URL: ${dbUrl.split('-')[0]}...`);
 
-            // Create Turso client
+            // Create Turso client with timeout
             this.db = createClient({
                 url: dbUrl,
                 authToken: authToken,
             });
 
-            // Test connection
-            const result = await this.db.execute('SELECT 1 as connection_test');
-            logger.info('Successfully connected to Turso database');
+            // Test connection with timeout
+            logger.info('Testing database connection...');
+            const result = await Promise.race([
+                this.db.execute('SELECT 1 as connection_test'),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Database connection timeout (30s)')), 30000)
+                )
+            ]);
+            logger.info('✓ Successfully connected to Turso database');
             logger.info(`Database: ${dbUrl}`);
 
             return true;
         } catch (error) {
-            logger.error('Failed to connect to Turso:', error.message);
+            logger.error('Failed to connect to Turso database');
+            logger.error(`Error: ${error.message}`);
+            logger.error('CRITICAL: Check these in Render > Settings > Environment Variables:');
+            logger.error('  1. TURSO_CONNECTION_URL is set');
+            logger.error('  2. TURSO_AUTH_TOKEN is set');
+            logger.error('  3. Values are copied exactly without extra spaces');
             throw error;
         }
     }
